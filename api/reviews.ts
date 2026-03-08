@@ -59,10 +59,10 @@ export default async function handler(
     }
 
     /* ===========================
-       POST - Submit new review (public)
+       POST - Submit new review (public or admin)
     ============================ */
     if (req.method === 'POST') {
-      const { name, email, rating, text, avatar } = req.body;
+      const { name, email, rating, text, avatar, isApproved } = req.body;
 
       // Validation
       if (!name || !email || !rating || !text || !avatar) {
@@ -86,21 +86,27 @@ export default async function handler(
         });
       }
 
-      // Create review (not approved by default)
+      // Check if user is admin (for pre-approval)
+      const user = await getTokenFromRequest(req);
+      const isAdmin = user?.role === 'admin';
+
+      // Create review (not approved by default, unless admin explicitly sets it)
       const newReview = new Review({
         name: name.trim(),
         email: email.toLowerCase().trim(),
         rating,
         text: text.trim(),
         avatar: avatar.trim(),
-        isApproved: false,
+        isApproved: isAdmin && isApproved === true ? true : false,
       });
 
       await newReview.save();
 
       return res.status(201).json({
         success: true,
-        message: 'Review submitted successfully. It will appear after admin approval.',
+        message: isAdmin 
+          ? 'Review created successfully.' 
+          : 'Review submitted successfully. It will appear after admin approval.',
         review: newReview,
       });
     }

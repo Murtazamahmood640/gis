@@ -51,7 +51,7 @@ export default function BookPage() {
   useEffect(() => {
     const fetchActiveCoupon = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/coupons/active/current`);
+        const response = await fetch(`http://localhost:3000/api/coupons/active`);
         const data = await response.json();
         if (data.success && data.coupon) {
           setActiveCoupon(data.coupon);
@@ -63,7 +63,7 @@ export default function BookPage() {
       }
     };
     fetchActiveCoupon();
-  }, [API_BASE_URL]);
+  }, []);
 
   // Calculate discount based on active coupon or user-entered promo
   const savedPromo = localStorage.getItem("promo_code");

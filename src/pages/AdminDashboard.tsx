@@ -125,6 +125,16 @@ export default function AdminDashboard() {
   const [reviewSearch, setReviewSearch] = useState("");
   const [reviewStatusFilter, setReviewStatusFilter] = useState("all");
   const [viewingReview, setViewingReview] = useState<Review | null>(null);
+  const [showAddReview, setShowAddReview] = useState(false);
+  const [newReview, setNewReview] = useState({
+    name: "",
+    email: "",
+    rating: 5,
+    text: "",
+    avatar: "★",
+    isApproved: true,
+  });
+  const [creatingReview, setCreatingReview] = useState(false);
 
   // Delete confirmation state
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'appointment' | 'user' | 'coupon' | 'contact' | 'review' | null; id: string }>({ type: null, id: '' });
@@ -287,6 +297,39 @@ export default function AdminDashboard() {
 
   const handleDeleteReview = async (reviewId: string) => {
     setDeleteConfirm({ type: 'review', id: reviewId });
+  };
+
+  const handleCreateReview = async () => {
+    if (!newReview.name || !newReview.email || !newReview.text) {
+      toast.error('Fill all required fields');
+      return;
+    }
+
+    setCreatingReview(true);
+    try {
+      const response = await fetch('http://localhost:3000/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newReview)
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Review created successfully');
+        setNewReview({ name: "", email: "", rating: 5, text: "", avatar: "★", isApproved: true });
+        setShowAddReview(false);
+        fetchReviews();
+      } else {
+        toast.error(data.message || 'Failed to create review');
+      }
+    } catch (error) {
+      console.error("[v0] Error creating review:", error);
+      toast.error('Error creating review');
+    } finally {
+      setCreatingReview(false);
+    }
   };
 
   const handleCreateUser = async () => {
@@ -923,6 +966,9 @@ export default function AdminDashboard() {
                   {["all", "approved", "pending"].map((s) => <SelectItem key={s} value={s}>{s === "all" ? "All Status" : s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <Button onClick={() => setShowAddReview(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2 w-full md:w-auto">
+                <Plus className="w-4 h-4" /> Add Review
+              </Button>
             </div>
 
             <div className="grid gap-4">
@@ -1220,6 +1266,59 @@ export default function AdminDashboard() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingContact(null)} className="border-border text-muted-foreground">Cancel</Button>
             <Button onClick={() => editingContact && handleUpdateContactStatus(editingContact._id, editingContact.status)} className="bg-gradient-sky text-primary-foreground font-semibold hover:opacity-90">Update Status</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Review Dialog */}
+      <Dialog open={showAddReview} onOpenChange={setShowAddReview}>
+        <DialogContent className="bg-card border-border text-foreground max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">Create New Review</DialogTitle>
+            <DialogDescription>Add a new review that will appear on the website</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-foreground">Name *</Label>
+              <Input value={newReview.name} onChange={(e) => setNewReview({ ...newReview, name: e.target.value })} placeholder="Customer name" className="bg-secondary border-border text-foreground mt-1" />
+            </div>
+            <div>
+              <Label className="text-foreground">Email *</Label>
+              <Input value={newReview.email} onChange={(e) => setNewReview({ ...newReview, email: e.target.value })} placeholder="Customer email" type="email" className="bg-secondary border-border text-foreground mt-1" />
+            </div>
+            <div>
+              <Label className="text-foreground">Avatar Character</Label>
+              <Input value={newReview.avatar} onChange={(e) => setNewReview({ ...newReview, avatar: e.target.value })} placeholder="★" maxLength={2} className="bg-secondary border-border text-foreground mt-1" />
+            </div>
+            <div>
+              <Label className="text-foreground">Rating (1-5)</Label>
+              <Select value={String(newReview.rating)} onValueChange={(value) => setNewReview({ ...newReview, rating: Number(value) })}>
+                <SelectTrigger className="bg-secondary border-border text-foreground mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {[1, 2, 3, 4, 5].map((r) => (
+                    <SelectItem key={r} value={String(r)}>
+                      {Array(r).fill('★').join('')} ({r}/5)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-foreground">Review Text *</Label>
+              <textarea value={newReview.text} onChange={(e) => setNewReview({ ...newReview, text: e.target.value })} placeholder="Write the review here..." className="w-full bg-secondary border border-border text-foreground rounded-md p-2 mt-1 min-h-24 resize-none focus:outline-none focus:ring-2 focus:ring-primary" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={newReview.isApproved} onCheckedChange={(checked) => setNewReview({ ...newReview, isApproved: checked })} className="data-[state=checked]:bg-emerald-500" />
+              <Label className="text-foreground cursor-pointer">Auto-approve review (show immediately on website)</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddReview(false)} disabled={creatingReview} className="border-border text-muted-foreground">Cancel</Button>
+            <Button onClick={handleCreateReview} disabled={creatingReview} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              {creatingReview ? 'Creating...' : 'Create Review'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

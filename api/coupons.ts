@@ -102,10 +102,13 @@ export default async function handler(
       }
 
       // Create coupon
+      // Deactivate all other coupons first (only one active at a time)
+      await Coupon.updateMany({}, { isActive: false });
+
       const newCoupon = new Coupon({
         code: code.toUpperCase(),
         discountPercentage,
-        expiryDate: expiry,
+        expiryDate: new Date(expiryDate),
         isActive: true,
       });
 
