@@ -2,6 +2,14 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { connectDB } from '../backend/config/database.ts';
 import { Contact } from '../backend/models/Contact.ts';
 import { sendEmail, getContactAcknowledgmentEmail } from '../backend/services/emailService.ts';
+import { verifyToken, type JwtPayload } from '../backend/utils/jwt';
+
+async function getTokenFromRequest(req: VercelRequest): Promise<JwtPayload | null> {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return null;
+  return verifyToken(token);
+}
 
 export default async function handler(
   req: VercelRequest,
@@ -60,12 +68,92 @@ export default async function handler(
         message: 'Contact submission received successfully',
         data: contact,
       });
-    } else if (req.method === 'GET') {
+    }
+
+    // Verify authentication for admin operations
+    const user = await getTokenFromRequest(req);
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
+    // Verify admin role
+    if (user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin access required',
+      });
+    }
+
+    if (req.method === 'GET') {
       // Get all contact submissions (admin only)
       const contacts = await Contact.find().sort({ createdAt: -1 });
       return res.status(200).json({
         success: true,
         data: contacts,
+      });
+    } else if (req.method === 'PUT') {
+      // Update contact status (admin only)
+      const { id } = req.query;
+      const { status } = req.body;
+
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Contact ID is required',
+        });
+      }
+
+      if (!status || !['New', 'Reviewed', 'Responded', 'Resolved'].includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Valid status is required (New, Reviewed, Responded, Resolved)',
+        });
+      }
+
+      const contact = await Contact.findByIdAndUpdate(
+        id,
+        { status },
+        { new: true }
+      );
+
+      if (!contact) {
+        return res.status(404).json({
+          success: false,
+          message: 'Contact not found',
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Contact updated successfully',
+        data: contact,
+      });
+    } else if (req.method === 'DELETE') {
+      // Delete contact submission (admin only)
+      const { id } = req.query;
+
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Contact ID is required',
+        });
+      }
+
+      const contact = await Contact.findByIdAndDelete(id);
+
+      if (!contact) {
+        return res.status(404).json({
+          success: false,
+          message: 'Contact not found',
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Contact deleted successfully',
       });
     } else {
       return res.status(405).json({

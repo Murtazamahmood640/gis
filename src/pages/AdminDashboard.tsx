@@ -41,6 +41,18 @@ interface Coupon {
   updatedAt: string;
 }
 
+interface Contact {
+  _id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  subject: string;
+  message: string;
+  status: 'New' | 'Reviewed' | 'Responded' | 'Resolved';
+  createdAt: string;
+  updatedAt: string;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   Pending: "bg-primary/20 text-primary border-primary/30",
   Confirmed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
@@ -87,8 +99,16 @@ export default function AdminDashboard() {
   const [showAddPromo, setShowAddPromo] = useState(false);
   const [newPromo, setNewPromo] = useState({ code: "", discountPercentage: "", expiryDate: "" });
 
+  // Contacts state
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [contactSearch, setContactSearch] = useState("");
+  const [contactStatusFilter, setContactStatusFilter] = useState("all");
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+
   // Delete confirmation state
-  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'appointment' | 'user' | 'coupon' | null; id: string }>({ type: null, id: '' });
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'appointment' | 'user' | 'coupon' | 'contact' | null; id: string }>({ type: null, id: '' });
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Load users and coupons on mount
@@ -97,6 +117,7 @@ export default function AdminDashboard() {
       fetchUsers();
       fetchCoupons();
       fetchAppointments();
+      fetchContacts();
     }
   }, [token]);
 
@@ -174,6 +195,26 @@ export default function AdminDashboard() {
       toast.error('Error loading coupons');
     } finally {
       setCouponsLoading(false);
+    }
+  };
+
+  const fetchContacts = async () => {
+    setContactsLoading(true);
+    try {
+      const response = await fetch('http://localhost:3000/api/contact', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setContacts(data.data);
+      } else {
+        toast.error(data.message || 'Failed to load contacts');
+      }
+    } catch (error) {
+      console.error("[v0] Error fetching contacts:", error);
+      toast.error('Error loading contacts');
+    } finally {
+      setContactsLoading(false);
     }
   };
 
@@ -388,10 +429,13 @@ export default function AdminDashboard() {
           endpoint = `http://localhost:3000/api/appointments/${deleteConfirm.id}`;
           break;
         case 'user':
-          endpoint = `http://localhost:3000/api/users/${deleteConfirm.id}`;
+          endpoint = `http://localhost:3000/api/users?id=${deleteConfirm.id}`;
           break;
         case 'coupon':
           endpoint = `http://localhost:3000/api/coupons?id=${deleteConfirm.id}`;
+          break;
+        case 'contact':
+          endpoint = `http://localhost:3000/api/contact?id=${deleteConfirm.id}`;
           break;
       }
 
@@ -412,6 +456,7 @@ export default function AdminDashboard() {
         if (deleteConfirm.type === 'appointment') fetchAppointments();
         else if (deleteConfirm.type === 'user') fetchUsers();
         else if (deleteConfirm.type === 'coupon') fetchCoupons();
+        else if (deleteConfirm.type === 'contact') fetchContacts();
       } else {
         toast.error(data.message || `Failed to delete ${deleteConfirm.type}`);
       }
@@ -444,6 +489,34 @@ export default function AdminDashboard() {
       console.error("[v0] Error toggling user status:", error);
       toast.error('Error updating user');
     }
+  };
+
+  const handleUpdateContactStatus = async (contactId: string, newStatus: string) => {
+    try {
+      const response = await fetch(`http://localhost:3000/api/contact?id=${contactId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Contact status updated');
+        fetchContacts();
+        setEditingContact(null);
+      } else {
+        toast.error(data.message || 'Failed to update contact');
+      }
+    } catch (error) {
+      console.error("[v0] Error updating contact status:", error);
+      toast.error('Error updating contact');
+    }
+  };
+
+  const handleDeleteContact = async (contactId: string) => {
+    setDeleteConfirm({ type: 'contact', id: contactId });
   };
 
   // Calculate price with coupon discount
@@ -566,6 +639,9 @@ export default function AdminDashboard() {
             </TabsTrigger>
             <TabsTrigger value="coupons" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Tag className="w-4 h-4 mr-1" /> Coupons
+            </TabsTrigger>
+            <TabsTrigger value="contacts" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <AlertCircle className="w-4 h-4 mr-1" /> Contacts
             </TabsTrigger>
           </TabsList>
 
@@ -753,6 +829,64 @@ export default function AdminDashboard() {
               ))}
             </div>
           </TabsContent>
+
+          {/* Contacts Tab */}
+          <TabsContent value="contacts">
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input value={contactSearch} onChange={(e) => setContactSearch(e.target.value)} placeholder="Search by name, email, or subject..." className="bg-secondary border-border text-foreground pl-10" />
+              </div>
+              <Select value={contactStatusFilter} onValueChange={setContactStatusFilter}>
+                <SelectTrigger className="w-full md:w-48 bg-secondary border-border text-foreground">
+                  <Filter className="w-4 h-4 mr-2" /><SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {["all", "New", "Reviewed", "Responded", "Resolved"].map((s) => <SelectItem key={s} value={s}>{s === "all" ? "All Status" : s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="bg-gradient-card border border-border rounded-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      {["Name", "Email", "Subject", "Status", "Date", "Actions"].map((h) => (
+                        <th key={h} className="text-left px-4 py-3 text-xs text-muted-foreground uppercase tracking-wider font-medium">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {contactsLoading ? (
+                      <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">Loading contacts...</td></tr>
+                    ) : contacts.length === 0 ? (
+                      <tr><td colSpan={6} className="text-center py-12 text-muted-foreground">No contact submissions found.</td></tr>
+                    ) : contacts.filter(c => (contactStatusFilter === "all" || c.status === contactStatusFilter) && (contactSearch === "" || c.fullName.toLowerCase().includes(contactSearch.toLowerCase()) || c.email.toLowerCase().includes(contactSearch.toLowerCase()) || c.subject.toLowerCase().includes(contactSearch.toLowerCase()))).map((contact) => (
+                      <tr key={contact._id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
+                        <td className="px-4 py-3"><div className="text-foreground font-medium">{contact.fullName}</div></td>
+                        <td className="px-4 py-3"><div className="text-foreground text-sm">{contact.email}</div></td>
+                        <td className="px-4 py-3 text-foreground text-sm">{contact.subject}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant="outline" className={`text-xs ${contact.status === 'New' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' : contact.status === 'Reviewed' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : contact.status === 'Responded' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
+                            {contact.status}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground text-sm">{new Date(contact.createdAt).toLocaleDateString()}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => setSelectedContact(contact)} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"><Eye className="w-4 h-4" /></button>
+                            <button onClick={() => setEditingContact(contact)} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-primary transition-colors"><Pencil className="w-4 h-4" /></button>
+                            <button onClick={() => handleDeleteContact(contact._id)} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -889,6 +1023,63 @@ export default function AdminDashboard() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingCoupon(null)} className="border-border text-muted-foreground">Cancel</Button>
             <Button onClick={() => editingCoupon && handleUpdateCoupon(editingCoupon._id)} className="bg-gradient-sky text-primary-foreground font-semibold hover:opacity-90">Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Contact Dialog */}
+      <Dialog open={!!selectedContact} onOpenChange={() => setSelectedContact(null)}>
+        <DialogContent className="bg-card border-border text-foreground max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">Contact Details</DialogTitle>
+            <DialogDescription>View the complete contact submission</DialogDescription>
+          </DialogHeader>
+          {selectedContact && (
+            <div className="space-y-4 text-sm">
+              <div><span className="text-muted-foreground">Name:</span> <span className="text-foreground font-medium">{selectedContact.fullName}</span></div>
+              <div><span className="text-muted-foreground">Email:</span> <span className="text-foreground font-medium">{selectedContact.email}</span></div>
+              <div><span className="text-muted-foreground">Phone:</span> <span className="text-foreground font-medium">{selectedContact.phone}</span></div>
+              <div><span className="text-muted-foreground">Subject:</span> <span className="text-foreground font-medium">{selectedContact.subject}</span></div>
+              <div><span className="text-muted-foreground">Status:</span> <span className="text-foreground font-medium">{selectedContact.status}</span></div>
+              <div className="pt-2 border-t border-border">
+                <span className="text-muted-foreground block mb-2">Message:</span>
+                <p className="text-foreground bg-secondary/50 rounded p-3 whitespace-pre-wrap">{selectedContact.message}</p>
+              </div>
+              <div><span className="text-muted-foreground">Submitted:</span> <span className="text-foreground font-medium">{new Date(selectedContact.createdAt).toLocaleString()}</span></div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedContact(null)} className="border-border text-muted-foreground">Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Contact Status Dialog */}
+      <Dialog open={!!editingContact} onOpenChange={() => setEditingContact(null)}>
+        <DialogContent className="bg-card border-border text-foreground max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">Update Contact Status</DialogTitle>
+            <DialogDescription>Change the status of this contact submission</DialogDescription>
+          </DialogHeader>
+          {editingContact && (
+            <div className="space-y-4">
+              <div><Label className="text-foreground">From:</Label><Input value={editingContact.fullName} disabled className="bg-secondary border-border text-muted-foreground mt-1" /></div>
+              <div><Label className="text-foreground">Current Status</Label>
+                <div className="mt-1 p-2 bg-secondary rounded border border-border text-foreground">{editingContact.status}</div>
+              </div>
+              <div><Label className="text-foreground">New Status</Label>
+                <Select defaultValue={editingContact.status} onValueChange={(newStatus) => setEditingContact({ ...editingContact, status: newStatus as any })}>
+                  <SelectTrigger className="bg-secondary border-border text-foreground mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    {["New", "Reviewed", "Responded", "Resolved"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingContact(null)} className="border-border text-muted-foreground">Cancel</Button>
+            <Button onClick={() => editingContact && handleUpdateContactStatus(editingContact._id, editingContact.status)} className="bg-gradient-sky text-primary-foreground font-semibold hover:opacity-90">Update Status</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

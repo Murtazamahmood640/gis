@@ -69,11 +69,11 @@ app.post('/api/users', async (req, res) => {
   await usersHandler(req as any, res);
 });
 
-app.put('/api/users:id', async (req, res) => {
+app.put('/api/users', async (req, res) => {
   await usersHandler(req as any, res);
 });
 
-app.delete('/api/users:id', async (req, res) => {
+app.delete('/api/users', async (req, res) => {
   await usersHandler(req as any, res);
 });
 
@@ -83,6 +83,14 @@ app.post('/api/contact', async (req, res) => {
 });
 
 app.get('/api/contact', async (req, res) => {
+  await contactHandler(req as any, res);
+});
+
+app.put('/api/contact', async (req, res) => {
+  await contactHandler(req as any, res);
+});
+
+app.delete('/api/contact', async (req, res) => {
   await contactHandler(req as any, res);
 });
 
