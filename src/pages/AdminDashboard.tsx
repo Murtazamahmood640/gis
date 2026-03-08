@@ -128,7 +128,7 @@ export default function AdminDashboard() {
   const [showAddReview, setShowAddReview] = useState(false);
   const [newReview, setNewReview] = useState({
     name: "",
-    email: "",
+    email: "admin@example.com",
     rating: 5,
     text: "",
     avatar: "★",
@@ -300,7 +300,7 @@ export default function AdminDashboard() {
   };
 
   const handleCreateReview = async () => {
-    if (!newReview.name || !newReview.email || !newReview.text) {
+    if (!newReview.name || !newReview.text) {
       toast.error('Fill all required fields');
       return;
     }
@@ -318,7 +318,7 @@ export default function AdminDashboard() {
       const data = await response.json();
       if (data.success) {
         toast.success('Review created successfully');
-        setNewReview({ name: "", email: "", rating: 5, text: "", avatar: "★", isApproved: true });
+        setNewReview({ name: "", email: "admin@example.com", rating: 5, text: "", avatar: "★", isApproved: true });
         setShowAddReview(false);
         fetchReviews();
       } else {
@@ -1279,19 +1279,11 @@ export default function AdminDashboard() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-foreground">Name *</Label>
-              <Input value={newReview.name} onChange={(e) => setNewReview({ ...newReview, name: e.target.value })} placeholder="Customer name" className="bg-secondary border-border text-foreground mt-1" />
+              <Label className="text-foreground">Customer Name *</Label>
+              <Input value={newReview.name} onChange={(e) => setNewReview({ ...newReview, name: e.target.value })} placeholder="Enter customer name" className="bg-secondary border-border text-foreground mt-1" />
             </div>
             <div>
-              <Label className="text-foreground">Email *</Label>
-              <Input value={newReview.email} onChange={(e) => setNewReview({ ...newReview, email: e.target.value })} placeholder="Customer email" type="email" className="bg-secondary border-border text-foreground mt-1" />
-            </div>
-            <div>
-              <Label className="text-foreground">Avatar Character</Label>
-              <Input value={newReview.avatar} onChange={(e) => setNewReview({ ...newReview, avatar: e.target.value })} placeholder="★" maxLength={2} className="bg-secondary border-border text-foreground mt-1" />
-            </div>
-            <div>
-              <Label className="text-foreground">Rating (1-5)</Label>
+              <Label className="text-foreground">Rating (1-5) *</Label>
               <Select value={String(newReview.rating)} onValueChange={(value) => setNewReview({ ...newReview, rating: Number(value) })}>
                 <SelectTrigger className="bg-secondary border-border text-foreground mt-1">
                   <SelectValue />
@@ -1306,8 +1298,8 @@ export default function AdminDashboard() {
               </Select>
             </div>
             <div>
-              <Label className="text-foreground">Review Text *</Label>
-              <textarea value={newReview.text} onChange={(e) => setNewReview({ ...newReview, text: e.target.value })} placeholder="Write the review here..." className="w-full bg-secondary border border-border text-foreground rounded-md p-2 mt-1 min-h-24 resize-none focus:outline-none focus:ring-2 focus:ring-primary" />
+              <Label className="text-foreground">Review *</Label>
+              <textarea value={newReview.text} onChange={(e) => setNewReview({ ...newReview, text: e.target.value })} placeholder="Write the review here..." className="w-full bg-secondary border border-border text-foreground rounded-md p-2 mt-1 min-h-32 resize-none focus:outline-none focus:ring-2 focus:ring-primary" />
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={newReview.isApproved} onCheckedChange={(checked) => setNewReview({ ...newReview, isApproved: checked })} className="data-[state=checked]:bg-emerald-500" />

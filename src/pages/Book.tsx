@@ -67,20 +67,21 @@ export default function BookPage() {
 
   // Calculate discount based on active coupon or user-entered promo
   const savedPromo = localStorage.getItem("promo_code");
-  const userPromoCode = form.promoCode.trim().toUpperCase() || savedPromo || "";
+  const userEnteredPromo = form.promoCode.trim().toUpperCase();
   
-  // Use active coupon if available and no custom promo code entered
+  // Determine which coupon to use
   let discountPercentage = 0;
   let appliedCouponCode = "";
   
-  if (userPromoCode) {
-    // User entered a promo code manually
-    appliedCouponCode = userPromoCode;
-    if (userPromoCode === "FIRST10") {
-      discountPercentage = 10;
+  if (userEnteredPromo) {
+    // User entered a promo code manually - check if it matches active coupon
+    appliedCouponCode = userEnteredPromo;
+    if (activeCoupon && userEnteredPromo === activeCoupon.code) {
+      discountPercentage = activeCoupon.discountPercentage;
     }
+    // Otherwise, no discount unless it's a recognized code
   } else if (activeCoupon) {
-    // Use the active coupon from the system
+    // Use the active coupon from the system if no manual code entered
     appliedCouponCode = activeCoupon.code;
     discountPercentage = activeCoupon.discountPercentage;
   }
@@ -253,13 +254,13 @@ export default function BookPage() {
                 <h3 className="font-display text-xl font-bold text-foreground">Promo & Total</h3>
                 
                 {/* Active Coupon Banner */}
-                {!couponLoading && activeCoupon && !userPromoCode && (
+                {!couponLoading && activeCoupon && (
                   <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="text-sm font-semibold text-emerald-400">Active Discount Code</div>
                         <div className="text-foreground font-mono font-bold text-lg mt-1">{activeCoupon.code}</div>
-                        <div className="text-xs text-muted-foreground mt-1">Automatic discount of {activeCoupon.discountPercentage}% applied at checkout</div>
+                        <div className="text-xs text-muted-foreground mt-1">Automatic discount of {activeCoupon.discountPercentage}% applied to your booking</div>
                       </div>
                       <div className="text-right">
                         <div className="text-2xl font-bold text-emerald-400">{activeCoupon.discountPercentage}%</div>
@@ -269,7 +270,7 @@ export default function BookPage() {
                   </motion.div>
                 )}
                 
-                <div><Label className="text-foreground">Promo Code</Label><Input value={form.promoCode || savedPromo || ""} onChange={(e) => update("promoCode", e.target.value)} placeholder={activeCoupon ? `${activeCoupon.code} is active` : "Enter promo code"} className="bg-secondary border-border text-foreground mt-1" /></div>
+                <div><Label className="text-foreground">Promo Code</Label><Input value={form.promoCode} onChange={(e) => update("promoCode", e.target.value)} placeholder="Enter promo code (optional)" className="bg-secondary border-border text-foreground mt-1" /></div>
                 <div className="border-t border-border pt-4 space-y-2">
                   {items.map((item) => (
                     <div key={item.id} className="flex justify-between text-sm"><span className="text-muted-foreground">{item.serviceType} ({item.vehicleCategory})</span><span className="text-foreground">${item.price.toFixed(2)}</span></div>
