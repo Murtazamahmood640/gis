@@ -1,11 +1,24 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Star, Quote, ArrowRight, ThumbsUp, MessageSquare, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import PageHero from "@/components/PageHero";
 import heroReviews from "@/assets/hero-reviews.jpg";
+import { toast } from "sonner";
 
-const reviews = [
+interface Review {
+  _id: string;
+  name: string;
+  email: string;
+  rating: number;
+  text: string;
+  avatar: string;
+  isApproved: boolean;
+  createdAt: string;
+}
+
+const defaultReviews = [
   { name: "James M.", rating: 5, text: "Absolutely incredible work. My car looks better than when I first bought it. The attention to detail is unmatched! Every surface was spotless and the ceramic coating gives an amazing depth to the paint.", avatar: "JM" },
   { name: "Sarah K.", rating: 5, text: "The Super Wax Detail was worth every penny. My Tesla has never looked this good. The ceramic coating gives an amazing shine that has lasted months. Will definitely be coming back for regular service!", avatar: "SK" },
   { name: "Michael R.", rating: 5, text: "Professional service from start to finish. They were on time, thorough, and my SUV looks brand new. The interior smells incredible and every crevice was cleaned. Highly recommend to everyone!", avatar: "MR" },
@@ -38,6 +51,35 @@ function Stars({ count }: { count: number }) {
 }
 
 export default function ReviewsPage() {
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/reviews?status=approved');
+        const data = await response.json();
+        if (data.success) {
+          setReviews(data.reviews);
+        } else {
+          console.error('Failed to fetch reviews:', data.message);
+          // Fall back to default reviews if API fails
+          setReviews(defaultReviews);
+        }
+      } catch (error) {
+        console.error('Error fetching reviews:', error);
+        // Fall back to default reviews if API fails
+        setReviews(defaultReviews);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchReviews();
+  }, []);
+
+  const reviewsToDisplay = reviews.length > 0 ? reviews : defaultReviews;
+
   return (
     <>
       <PageHero
@@ -76,8 +118,13 @@ export default function ReviewsPage() {
 
       <section className="py-12 lg:py-20">
         <div className="container mx-auto px-4 lg:px-8">
+          {isLoading ? (
+            <div className="text-center py-12">
+              <div className="text-muted-foreground">Loading reviews...</div>
+            </div>
+          ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
-            {reviews.map((review, i) => (
+            {reviewsToDisplay.map((review, i) => (
               <motion.div
                 key={review.name}
                 initial={{ opacity: 0, y: 30 }}
@@ -99,6 +146,7 @@ export default function ReviewsPage() {
               </motion.div>
             ))}
           </div>
+          )}
         </div>
       </section>
 

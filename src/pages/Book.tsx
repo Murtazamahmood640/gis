@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { CalendarIcon, Car, Trash2, ShoppingCart, CheckCircle, AlertCircle, X } from "lucide-react";
 import { format } from "date-fns";
@@ -15,12 +15,20 @@ import { TIME_SLOTS } from "@/data/pricing";
 import { useCart } from "@/contexts/CartContext";
 import heroBook from "@/assets/hero-book.jpg";
 
+interface ActiveCoupon {
+  code: string;
+  discountPercentage: number;
+  expiryDate: string;
+}
+
 export default function BookPage() {
   const { items, removeItem, clearCart, total: cartTotal } = useCart();
   const [isLoading, setIsLoading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [dialogType, setDialogType] = useState<'success' | 'error'>('success');
   const [dialogMessage, setDialogMessage] = useState("");
+  const [activeCoupon, setActiveCoupon] = useState<ActiveCoupon | null>(null);
+  const [couponLoading, setCouponLoading] = useState(true);
 
   const [form, setForm] = useState({
      fullName: "",
@@ -39,12 +47,46 @@ export default function BookPage() {
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
 
-  const savedPromo = localStorage.getItem("promo_code");
-  const promoCode = form.promoCode.trim().toUpperCase() || savedPromo || "";
-  const hasDiscount = promoCode === "FIRST10";
+  // Fetch active coupon on component mount
+  useEffect(() => {
+    const fetchActiveCoupon = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/coupons/active/current`);
+        const data = await response.json();
+        if (data.success && data.coupon) {
+          setActiveCoupon(data.coupon);
+        }
+      } catch (error) {
+        console.error("Error fetching active coupon:", error);
+      } finally {
+        setCouponLoading(false);
+      }
+    };
+    fetchActiveCoupon();
+  }, [API_BASE_URL]);
 
-  const discount = hasDiscount ? cartTotal * 0.1 : 0;
-  const finalTotal = cartTotal - discount;
+  // Calculate discount based on active coupon or user-entered promo
+  const savedPromo = localStorage.getItem("promo_code");
+  const userPromoCode = form.promoCode.trim().toUpperCase() || savedPromo || "";
+  
+  // Use active coupon if available and no custom promo code entered
+  let discountPercentage = 0;
+  let appliedCouponCode = "";
+  
+  if (userPromoCode) {
+    // User entered a promo code manually
+    appliedCouponCode = userPromoCode;
+    if (userPromoCode === "FIRST10") {
+      discountPercentage = 10;
+    }
+  } else if (activeCoupon) {
+    // Use the active coupon from the system
+    appliedCouponCode = activeCoupon.code;
+    discountPercentage = activeCoupon.discountPercentage;
+  }
+
+  const discount = (cartTotal * discountPercentage) / 100;
+  const finalTotal = Math.max(0, cartTotal - discount);
 
   const update = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -78,8 +120,8 @@ export default function BookPage() {
           vehicleCategory: items[0]?.vehicleCategory || "Car",
           date: date?.toISOString().split('T')[0],
           timeSlot: form.timeSlot,
-          promoCode: promoCode,
-          discountApplied: hasDiscount,
+          promoCode: appliedCouponCode,
+          discountApplied: discountPercentage > 0,
           totalPrice: finalTotal,
           status: "Pending",
         }),
@@ -209,13 +251,31 @@ export default function BookPage() {
             {items.length > 0 && (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="bg-gradient-card border border-primary/30 rounded-xl p-6 lg:p-8 space-y-4 card-hover">
                 <h3 className="font-display text-xl font-bold text-foreground">Promo & Total</h3>
-                <div><Label className="text-foreground">Promo Code</Label><Input value={form.promoCode || savedPromo || ""} onChange={(e) => update("promoCode", e.target.value)} placeholder="Enter promo code" className="bg-secondary border-border text-foreground mt-1" /></div>
+                
+                {/* Active Coupon Banner */}
+                {!couponLoading && activeCoupon && !userPromoCode && (
+                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-emerald-400">Active Discount Code</div>
+                        <div className="text-foreground font-mono font-bold text-lg mt-1">{activeCoupon.code}</div>
+                        <div className="text-xs text-muted-foreground mt-1">Automatic discount of {activeCoupon.discountPercentage}% applied at checkout</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-emerald-400">{activeCoupon.discountPercentage}%</div>
+                        <div className="text-xs text-muted-foreground">OFF</div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                
+                <div><Label className="text-foreground">Promo Code</Label><Input value={form.promoCode || savedPromo || ""} onChange={(e) => update("promoCode", e.target.value)} placeholder={activeCoupon ? `${activeCoupon.code} is active` : "Enter promo code"} className="bg-secondary border-border text-foreground mt-1" /></div>
                 <div className="border-t border-border pt-4 space-y-2">
                   {items.map((item) => (
                     <div key={item.id} className="flex justify-between text-sm"><span className="text-muted-foreground">{item.serviceType} ({item.vehicleCategory})</span><span className="text-foreground">${item.price.toFixed(2)}</span></div>
                   ))}
                   <div className="flex justify-between text-sm border-t border-border pt-2"><span className="text-muted-foreground">Subtotal</span><span className="text-foreground">${cartTotal.toFixed(2)}</span></div>
-                  {hasDiscount && <div className="flex justify-between text-sm"><span className="text-primary">Discount (10%)</span><span className="text-primary">-${discount.toFixed(2)}</span></div>}
+                  {discountPercentage > 0 && <div className="flex justify-between text-sm"><span className="text-primary">Discount ({discountPercentage}%)</span><span className="text-primary">-${discount.toFixed(2)}</span></div>}
                   <div className="flex justify-between text-lg font-bold border-t border-border pt-2"><span className="text-foreground">Total</span><span className="text-gradient-sky">${finalTotal.toFixed(2)}</span></div>
                 </div>
               </motion.div>

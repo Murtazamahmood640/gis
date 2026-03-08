@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   LogOut, Search, Filter, Pencil, Trash2, Eye, Download, Plus,
-  CalendarDays, Clock, DollarSign, Users, CheckCircle, AlertCircle, Tag
+  CalendarDays, Clock, DollarSign, Users, CheckCircle, AlertCircle, Tag, Star
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,18 @@ interface Contact {
   subject: string;
   message: string;
   status: 'New' | 'Reviewed' | 'Responded' | 'Resolved';
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Review {
+  _id: string;
+  name: string;
+  email: string;
+  rating: number;
+  text: string;
+  avatar: string;
+  isApproved: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -107,8 +119,15 @@ export default function AdminDashboard() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
+  // Reviews state
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [reviewStatusFilter, setReviewStatusFilter] = useState("all");
+  const [viewingReview, setViewingReview] = useState<Review | null>(null);
+
   // Delete confirmation state
-  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'appointment' | 'user' | 'coupon' | 'contact' | null; id: string }>({ type: null, id: '' });
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'appointment' | 'user' | 'coupon' | 'contact' | 'review' | null; id: string }>({ type: null, id: '' });
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Load users and coupons on mount
@@ -118,6 +137,7 @@ export default function AdminDashboard() {
       fetchCoupons();
       fetchAppointments();
       fetchContacts();
+      fetchReviews();
     }
   }, [token]);
 
@@ -216,6 +236,57 @@ export default function AdminDashboard() {
     } finally {
       setContactsLoading(false);
     }
+  };
+
+  const fetchReviews = async () => {
+    setReviewsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (reviewSearch) params.append('search', reviewSearch);
+      if (reviewStatusFilter !== 'all') params.append('status', reviewStatusFilter);
+
+      const response = await fetch(`http://localhost:3000/api/reviews?${params}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setReviews(data.reviews);
+      } else {
+        toast.error(data.message || 'Failed to load reviews');
+      }
+    } catch (error) {
+      console.error("[v0] Error fetching reviews:", error);
+      toast.error('Error loading reviews');
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const handleToggleReviewApproval = async (reviewId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch(`http://localhost:3000/api/reviews?id=${reviewId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ isApproved: !currentStatus })
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Review approval status updated');
+        fetchReviews();
+      } else {
+        toast.error(data.message || 'Failed to update review');
+      }
+    } catch (error) {
+      console.error("[v0] Error toggling review approval:", error);
+      toast.error('Error updating review');
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    setDeleteConfirm({ type: 'review', id: reviewId });
   };
 
   const handleCreateUser = async () => {
@@ -437,6 +508,9 @@ export default function AdminDashboard() {
         case 'contact':
           endpoint = `http://localhost:3000/api/contact?id=${deleteConfirm.id}`;
           break;
+        case 'review':
+          endpoint = `http://localhost:3000/api/reviews?id=${deleteConfirm.id}`;
+          break;
       }
 
       const response = await fetch(endpoint, {
@@ -457,6 +531,7 @@ export default function AdminDashboard() {
         else if (deleteConfirm.type === 'user') fetchUsers();
         else if (deleteConfirm.type === 'coupon') fetchCoupons();
         else if (deleteConfirm.type === 'contact') fetchContacts();
+        else if (deleteConfirm.type === 'review') fetchReviews();
       } else {
         toast.error(data.message || `Failed to delete ${deleteConfirm.type}`);
       }
@@ -632,13 +707,16 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs defaultValue="appointments">
-          <TabsList className="bg-secondary border border-border mb-6">
+          <TabsList className="bg-secondary border border-border mb-6 flex flex-wrap">
             <TabsTrigger value="appointments" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Appointments</TabsTrigger>
             <TabsTrigger value="users" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Users className="w-4 h-4 mr-1" /> Users
             </TabsTrigger>
             <TabsTrigger value="coupons" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Tag className="w-4 h-4 mr-1" /> Coupons
+            </TabsTrigger>
+            <TabsTrigger value="reviews" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Star className="w-4 h-4 mr-1" /> Reviews
             </TabsTrigger>
             <TabsTrigger value="contacts" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <AlertCircle className="w-4 h-4 mr-1" /> Contacts
@@ -822,6 +900,68 @@ export default function AdminDashboard() {
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button onClick={() => handleDeleteCoupon(coupon._id)} className="p-2 rounded hover:bg-secondary text-muted-foreground hover:text-red-400 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </TabsContent>
+
+          {/* Reviews Tab */}
+          <TabsContent value="reviews">
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input value={reviewSearch} onChange={(e) => setReviewSearch(e.target.value)} placeholder="Search by name or email..." className="bg-secondary border-border text-foreground pl-10" />
+              </div>
+              <Select value={reviewStatusFilter} onValueChange={setReviewStatusFilter}>
+                <SelectTrigger className="w-full md:w-48 bg-secondary border-border text-foreground">
+                  <Filter className="w-4 h-4 mr-2" /><SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {["all", "approved", "pending"].map((s) => <SelectItem key={s} value={s}>{s === "all" ? "All Status" : s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-4">
+              {reviewsLoading ? (
+                <div className="text-center py-12 text-muted-foreground">Loading reviews...</div>
+              ) : reviews.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">No reviews found.</div>
+              ) : reviews.map((review) => (
+                <motion.div key={review._id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gradient-card border border-border rounded-xl p-5 sm:p-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-full bg-gradient-sky flex items-center justify-center text-primary-foreground font-bold flex-shrink-0">
+                        {review.avatar}
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-foreground font-bold text-lg">{review.name}</div>
+                        <div className="text-sm text-muted-foreground">{review.email}</div>
+                        <div className="flex gap-0.5 mt-1">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'fill-primary text-primary' : 'text-muted-foreground/30'}`} />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className={review.isApproved ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'}>
+                      {review.isApproved ? 'Approved' : 'Pending'}
+                    </Badge>
+                  </div>
+                  <p className="text-foreground text-sm leading-relaxed">{review.text}</p>
+                  <div className="text-xs text-muted-foreground border-t border-border pt-3">
+                    {new Date(review.createdAt).toLocaleDateString()}
+                  </div>
+                  <div className="flex items-center gap-2 pt-2">
+                    <Switch checked={review.isApproved} onCheckedChange={() => handleToggleReviewApproval(review._id, review.isApproved)} className="data-[state=checked]:bg-emerald-500" />
+                    <span className="text-xs text-muted-foreground">{review.isApproved ? 'Approved' : 'Pending'}</span>
+                    <button onClick={() => setViewingReview(review)} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors ml-auto">
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDeleteReview(review._id)} className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-red-400 transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -1080,6 +1220,51 @@ export default function AdminDashboard() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingContact(null)} className="border-border text-muted-foreground">Cancel</Button>
             <Button onClick={() => editingContact && handleUpdateContactStatus(editingContact._id, editingContact.status)} className="bg-gradient-sky text-primary-foreground font-semibold hover:opacity-90">Update Status</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Review Dialog */}
+      <Dialog open={!!viewingReview} onOpenChange={() => setViewingReview(null)}>
+        <DialogContent className="bg-card border-border text-foreground max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl">Review Details</DialogTitle>
+            <DialogDescription>View the complete review information</DialogDescription>
+          </DialogHeader>
+          {viewingReview && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-gradient-sky flex items-center justify-center text-primary-foreground font-bold">
+                  {viewingReview.avatar}
+                </div>
+                <div>
+                  <div className="text-foreground font-semibold">{viewingReview.name}</div>
+                  <div className="text-sm text-muted-foreground">{viewingReview.email}</div>
+                </div>
+              </div>
+              <div className="flex gap-0.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} className={`w-4 h-4 ${i < viewingReview.rating ? 'fill-primary text-primary' : 'text-muted-foreground/30'}`} />
+                ))}
+              </div>
+              <div className="border-t border-border pt-4">
+                <span className="text-muted-foreground block mb-2 text-xs uppercase tracking-wider">Review</span>
+                <p className="text-foreground bg-secondary/50 rounded p-3 whitespace-pre-wrap text-sm">{viewingReview.text}</p>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Submitted:</span>
+                <span className="text-foreground font-medium">{new Date(viewingReview.createdAt).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Status:</span>
+                <Badge variant="outline" className={viewingReview.isApproved ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'}>
+                  {viewingReview.isApproved ? 'Approved' : 'Pending'}
+                </Badge>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingReview(null)} className="border-border text-muted-foreground">Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

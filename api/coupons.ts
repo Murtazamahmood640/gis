@@ -157,6 +157,11 @@ export default async function handler(
       if (expiryDate !== undefined) updateData.expiryDate = new Date(expiryDate);
       if (isActive !== undefined) updateData.isActive = isActive;
 
+      // If activating this coupon, deactivate all others
+      if (isActive === true) {
+        await Coupon.updateMany({ _id: { $ne: id } }, { isActive: false });
+      }
+
       const updatedCoupon = await Coupon.findByIdAndUpdate(
         id,
         updateData,
