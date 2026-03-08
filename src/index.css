@@ -1,0 +1,218 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=General+Sans:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 192 22% 14%;
+    --foreground: 0 0% 95%;
+
+    --card: 192 20% 18%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 192 20% 18%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 187 71% 65%;
+    --primary-foreground: 192 22% 14%;
+
+    --secondary: 192 18% 22%;
+    --secondary-foreground: 0 0% 85%;
+
+    --muted: 192 18% 22%;
+    --muted-foreground: 192 10% 55%;
+
+    --accent: 187 60% 50%;
+    --accent-foreground: 192 22% 14%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 192 15% 25%;
+    --input: 192 15% 25%;
+    --ring: 187 71% 65%;
+
+    --radius: 0.5rem;
+
+    --sky-glow: 187 80% 70%;
+    --sky-dark: 187 60% 40%;
+    --charcoal-light: 192 15% 26%;
+    --charcoal-medium: 192 20% 16%;
+
+    --sidebar-background: 192 22% 12%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 187 71% 65%;
+    --sidebar-primary-foreground: 192 22% 14%;
+    --sidebar-accent: 192 18% 22%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 192 15% 25%;
+    --sidebar-ring: 187 71% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='8' fill='none' stroke='%2366d9ed' stroke-width='2'/%3E%3Ccircle cx='10' cy='10' r='3' fill='%2366d9ed'/%3E%3C/svg%3E") 10 10, auto;
+  }
+
+  a, button, [role="button"], input[type="submit"], select, .cursor-pointer {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='%2366d9ed' fill-opacity='0.3' stroke='%2366d9ed' stroke-width='2'/%3E%3Ccircle cx='12' cy='12' r='4' fill='%2366d9ed'/%3E%3C/svg%3E") 12 12, pointer;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  .text-gradient-sky {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(187 80% 70%), hsl(187 71% 65%), hsl(187 60% 50%));
+  }
+
+  .text-gradient-gold {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(187 80% 70%), hsl(187 71% 65%), hsl(187 60% 50%));
+  }
+
+  .bg-gradient-dark {
+    background: linear-gradient(180deg, hsl(192 22% 14%) 0%, hsl(192 20% 18%) 100%);
+  }
+
+  .bg-gradient-card {
+    background: linear-gradient(145deg, hsl(192 20% 20%) 0%, hsl(192 22% 14%) 100%);
+  }
+
+  .bg-gradient-gold {
+    background: linear-gradient(135deg, hsl(187 80% 70%), hsl(187 60% 50%));
+  }
+
+  .bg-gradient-sky {
+    background: linear-gradient(135deg, hsl(187 80% 70%), hsl(187 60% 50%));
+  }
+
+  .border-gold {
+    border-color: hsl(187 71% 65% / 0.3);
+  }
+
+  .border-sky {
+    border-color: hsl(187 71% 65% / 0.3);
+  }
+
+  .shadow-gold {
+    box-shadow: 0 0 30px -5px hsl(187 71% 65% / 0.2);
+  }
+
+  .shadow-sky {
+    box-shadow: 0 0 30px -5px hsl(187 71% 65% / 0.2);
+  }
+
+  .shadow-gold-lg {
+    box-shadow: 0 0 60px -10px hsl(187 71% 65% / 0.3);
+  }
+
+  .glass-dark {
+    background: hsl(192 22% 14% / 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* UIverse-style card hover effect */
+  .card-hover {
+    @apply relative overflow-hidden transition-all duration-500;
+    pointer-events: auto;
+  }
+  .card-hover::before {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-500 pointer-events-none;
+    background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), hsl(187 71% 65% / 0.08), transparent 40%);
+  }
+  .card-hover:hover::before {
+    @apply opacity-100;
+  }
+  .card-hover::after {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-500 pointer-events-none;
+    background: radial-gradient(400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), hsl(187 71% 65% / 0.12), transparent 40%);
+    z-index: -1;
+  }
+  .card-hover:hover {
+    border-color: hsl(187 71% 65% / 0.4);
+    box-shadow: 0 0 30px -5px hsl(187 71% 65% / 0.15), 
+                0 0 60px -15px hsl(187 71% 65% / 0.1),
+                inset 0 1px 0 0 hsl(187 71% 65% / 0.1);
+    transform: translateY(-2px);
+  }
+
+  /* Ensure input fields are always clickable */
+  input, textarea, select, button, [role="button"] {
+    @apply pointer-events-auto;
+  }
+
+  /* Glow button hover */
+  .btn-glow {
+    @apply relative overflow-hidden;
+  }
+  .btn-glow::before {
+    content: '';
+    @apply absolute -inset-1 rounded-lg opacity-0 transition-opacity duration-300;
+    background: linear-gradient(135deg, hsl(187 80% 70% / 0.4), hsl(187 60% 50% / 0.4));
+    filter: blur(10px);
+    z-index: -1;
+  }
+  .btn-glow:hover::before {
+    @apply opacity-100;
+  }
+
+  /* Shine sweep effect */
+  .shine-hover {
+    @apply relative overflow-hidden;
+  }
+  .shine-hover::after {
+    content: '';
+    @apply absolute top-0 -left-full w-full h-full;
+    background: linear-gradient(90deg, transparent, hsl(187 71% 65% / 0.08), transparent);
+    transition: left 0.5s ease;
+  }
+  .shine-hover:hover::after {
+    left: 100%;
+  }
+
+  /* Border glow animation */
+  .border-glow-hover {
+    @apply relative;
+    background-clip: padding-box;
+  }
+  .border-glow-hover::before {
+    content: '';
+    @apply absolute -inset-px rounded-[inherit] opacity-0 transition-opacity duration-400;
+    background: linear-gradient(135deg, hsl(187 80% 70% / 0.6), transparent 50%, hsl(187 60% 50% / 0.6));
+    z-index: -1;
+  }
+  .border-glow-hover:hover::before {
+    @apply opacity-100;
+  }
+
+  /* Magnetic text hover */
+  .text-hover-glow:hover {
+    text-shadow: 0 0 20px hsl(187 71% 65% / 0.5), 0 0 40px hsl(187 71% 65% / 0.2);
+  }
+
+  /* Page hero with background image */
+  .page-hero {
+    @apply relative py-24 lg:py-32 overflow-hidden;
+  }
+
+  .page-hero-overlay {
+    @apply absolute inset-0;
+    background: linear-gradient(180deg, hsl(192 22% 14% / 0.85) 0%, hsl(192 22% 14% / 0.92) 100%);
+  }
+}
